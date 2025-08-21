@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora estilo iPhone</title>
+  <style>
+    :root{
+      --bg: #000;
+      --screen: #1c1c1e;
+      --key-dark: #2c2c2e;
+      --key-dark-press: #3a3a3c;
+      --key-light: #a5a5a5;
+      --key-light-press: #c7c7c7;
+      --key-accent: #ff9f0a;
+      --key-accent-press: #ffb340;
+      --text: #fff;
+      --radius: 28px;
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(1200px 800px at 70% -10%, #111 0%, #000 55%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--text);
+    }
+
+    .wrap{
+      min-height:100%;
+      display:grid;
+      place-items:center;
+      padding:24px;
+    }
+
+    .calculator{
+      width: 100%;
+      max-width: 380px;
+      background: linear-gradient(180deg, #0c0c0c 0%, #0b0b0b 60%, #060606 100%);
+      border-radius: 36px;
+      padding: 18px 16px 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid #1a1a1a;
+      position: relative;
+    }
+
+    .speaker{
+      position:absolute;
+      top:10px; left:50%; transform:translateX(-50%);
+      width: 25%; height: 6px;
+      background: #0f0f10;
+      border-radius: 999px;
+    }
+
+    .screen{
+      background: var(--screen);
+      border-radius: 24px;
+      padding: 20px 16px;
+      margin-top: 22px;
+      min-height: 110px;
+      display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end;
+    }
+    .expr{ opacity:.6; font-size:18px; }
+    .result{ font-size:48px; font-weight:600; word-break: break-all; }
+
+    .keys{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .key{
+      user-select:none;
+      display:grid; place-items:center;
+      height: 64px;
+      border-radius: var(--radius);
+      font-size: 22px;
+      font-weight: 500;
+      transition: transform .06s ease, background-color .06s ease;
+    }
+    .key:active{ transform: translateY(1px) scale(.995); }
+
+    .key.dark{ background: var(--key-dark); color: var(--text); }
+    .key.dark:active{ background: var(--key-dark-press); }
+
+    .key.light{ background: var(--key-light); color: #111; }
+    .key.light:active{ background: var(--key-light-press); }
+
+    .key.accent{ background: var(--key-accent); color:#fff; }
+    .key.accent:active{ background: var(--key-accent-press); }
+
+    .key.zero{
+      grid-column: span 2;
+      justify-content:start; padding-left: 24px;
+    }
+
+    @media (max-width: 380px){
+      .calculator{ border-radius: 28px; }
+      .key{ height: 58px; font-size: 20px; }
+      .result{ font-size: 42px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="calculator" role="application" aria-label="Calculadora estilo iPhone">
+      <div class="speaker"></div>
+
+      <div class="screen">
+        <div class="expr" id="expr"></div>
+        <div class="result" id="result">0</div>
+      </div>
+
+      <div class="keys">
+        <button class="key light" data-action="clear">AC</button>
+        <button class="key light" data-action="sign">+/-</button>
+        <button class="key light" data-action="percent">%</button>
+        <button class="key accent" data-action="operator" data-value="/">÷</button>
+
+        <button class="key dark" data-value="7">7</button>
+        <button class="key dark" data-value="8">8</button>
+        <button class="key dark" data-value="9">9</button>
+        <button class="key accent" data-action="operator" data-value="*">×</button>
+
+        <button class="key dark" data-value="4">4</button>
+        <button class="key dark" data-value="5">5</button>
+        <button class="key dark" data-value="6">6</button>
+        <button class="key accent" data-action="operator" data-value="-">−</button>
+
+        <button class="key dark" data-value="1">1</button>
+        <button class="key dark" data-value="2">2</button>
+        <button class="key dark" data-value="3">3</button>
+        <button class="key accent" data-action="operator" data-value="+">+</button>
+
+        <button class="key dark zero" data-value="0">0</button>
+        <button class="key dark" data-value=".">,</button>
+        <button class="key accent" data-action="equals">=</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const exprEl = document.getElementById("expr");
+    const resultEl = document.getElementById("result");
+    let current = "0";
+    let expression = "";
+    let operator = null;
+    let resetNext = false;
+
+    function updateDisplay(){
+      exprEl.textContent = expression;
+      resultEl.textContent = current;
+    }
+
+    function handleInput(action, value){
+      if(action === "clear"){
+        current = "0";
+        expression = "";
+        operator = null;
+        updateDisplay();
+        return;
+      }
+
+      if(action === "sign"){
+        if(current !== "0") current = String(parseFloat(current) * -1);
+        updateDisplay();
+        return;
+      }
+
+      if(action === "percent"){
+        current = String(parseFloat(current) / 100);
+        updateDisplay();
+        return;
+      }
+
+      if(action === "backspace"){
+        if(current.length > 1){
+          current = current.slice(0, -1);
+        } else {
+          current = "0";
+        }
+        updateDisplay();
+        return;
+      }
+
+      if(action === "operator"){
+        if(operator !== null){
+          expression += ` ${current}`;
+          current = eval(expression);
+          expression = current;
+        } else {
+          expression = current;
+        }
+        operator = value;
+        expression += ` ${operator}`;
+        resetNext = true;
+        updateDisplay();
+        return;
+      }
+
+      if(action === "equals"){
+        if(operator !== null){
+          expression += ` ${current}`;
+          try{
+            current = eval(expression).toString();
+          }catch{
+            current = "Erro";
+          }
+          expression = "";
+          operator = null;
+        }
+        updateDisplay();
+        return;
+      }
+
+      if(value){
+        if(resetNext){
+          current = value === "." ? "0." : value;
+          resetNext = false;
+        } else {
+          if(value === "."){
+            if(!current.includes(".")) current += ".";
+          } else {
+            current = current === "0" ? value : current + value;
+          }
+        }
+        updateDisplay();
+      }
+    }
+
+    document.querySelectorAll(".key").forEach(key => {
+      key.addEventListener("click", () => {
+        const value = key.dataset.value;
+        const action = key.dataset.action;
+        handleInput(action, value);
+      });
+    });
+
+    // Suporte para teclado físico
+    document.addEventListener("keydown", (e) => {
+      if(!isNaN(e.key)){ // números
+        handleInput(null, e.key);
+      } else if(["+","-","*","/"].includes(e.key)){
+        handleInput("operator", e.key);
+      } else if(e.key === "Enter" || e.key === "="){
+        handleInput("equals");
+      } else if(e.key === "%"){
+        handleInput("percent");
+      } else if(e.key === "c" || e.key === "C"){
+        handleInput("clear");
+      } else if(e.key === "." || e.key === ","){
+        handleInput(null, ".");
+      } else if(e.key === "Backspace"){
+        handleInput("backspace");
+      }
+    });
+
+    updateDisplay();
+  </script>
+</body>
+</html>
